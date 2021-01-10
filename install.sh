@@ -22,7 +22,7 @@ set_congestion_control () {
 install_configure_firewalld () {
     echo "Installing and configuring firewalld"
     # Install and start firewalld
-    yum -y install firewalld
+    apt-get -y install firewalld
     systemctl enable firewalld
     systemctl start firewalld
     # Allow SSH only from IP address(es) in the trusted zone
@@ -44,32 +44,39 @@ install_configure_firewalld () {
 install_configure_nginx () {
     echo "Installing and configuring nginx"
     # Install and start nginx
-    yum -y install nginx
+    apt-get -y install nginx
     systemctl enable nginx
     systemctl start nginx
     # Block unwarranted HTTP requests
     echo "if (\$request_method !~ ^(GET|HEAD|POST)\$ )" \
-                                > /etc/nginx/default.d/requests.conf
-    echo "{"                   >> /etc/nginx/default.d/requests.conf
-    echo "        return 405;" >> /etc/nginx/default.d/requests.conf
-    echo "}"                   >> /etc/nginx/default.d/requests.conf
+                                > /etc/nginx/conf.d/requests.conf
+    echo "{"                   >> /etc/nginx/conf.d/requests.conf
+    echo "        return 405;" >> /etc/nginx/conf.d/requests.conf
+    echo "}"                   >> /etc/nginx/conf.d/requests.conf
     # Set server name
     sed -i -e "/server_name/s/_;/$SERVERNAME;/" /etc/nginx/nginx.conf
     # Specify custom 404 page
-    echo "error_page 404 /index.html;" > /etc/nginx/default.d/404.conf
+    echo "error_page 404 /index.html;" > /etc/nginx/conf.d/404.conf
     # Restart Nginx with its new configuration
     systemctl restart nginx
     # Add website content
-    wget https://github.com/lionlibr/sample-hexo-blog/archive/master.zip
-    unzip master.zip
-    cd sample-hexo-blog-master
-    cp -rf public/* /usr/share/nginx/html/
+    #wget https://github.com/lionlibr/sample-hexo-blog/archive/master.zip
+    #unzip master.zip
+    #cd sample-hexo-blog-master
+    #cp -rf public/* /usr/share/nginx/html/
     # Obtain Let's Encrypt SSL certificate
-    wget https://dl.eff.org/certbot-auto
-    mv certbot-auto /usr/local/bin/certbot-auto
-    chmod 755 /usr/local/bin/certbot-auto
-    /usr/local/bin/certbot-auto certonly --nginx --agree-tos --register-unsafely-without-email -d $SERVERNAME
-    echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /usr/local/bin/certbot-auto renew" | tee -a /etc/crontab > /dev/null
+    #wget https://dl.eff.org/certbot-auto
+    #mv certbot-auto /usr/local/bin/certbot-auto
+    #chmod 755 /usr/local/bin/certbot-auto
+    #/usr/local/bin/certbot-auto certonly --nginx --agree-tos --register-unsafely-without-email -d $SERVERNAME
+    #echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /usr/local/bin/certbot-auto renew" | tee -a /etc/crontab > /dev/null
+}
+
+install_certbot() {
+    sudo snap install --classic certbot
+    sudo ln -s /snap/bin/certbot /usr/bin/certbot
+    /snap/bin/certbot --nginx --agree-tos --register-unsafely-without-email -d $SERVERNAME
+    echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /snap/bin/certbot renew" | tee -a /etc/crontab > /dev/null
 }
 
 ##########################################################################
@@ -80,8 +87,8 @@ install_configure_nginx () {
 install_configure_trojan () {
     echo "Installing and configuring Trojan"
     # Install Trojan
-    curl -O https://raw.githubusercontent.com/trojan-gfw/trojan-quickstart/master/trojan-quickstart.sh
-    /bin/bash trojan-quickstart.sh
+    #curl -O https://raw.githubusercontent.com/trojan-gfw/trojan-quickstart/master/trojan-quickstart.sh
+    # /bin/bash trojan-quickstart.sh
     # Amend Trojan server configuration file
     sed -i 's/"password1",/"password1"/' \
                           /usr/local/etc/trojan/config.json
@@ -96,7 +103,7 @@ install_configure_trojan () {
                           /usr/local/etc/trojan/config.json
     # Run Trojan
     systemctl enable trojan
-    systemctl start trojan
+    systemctl restart trojan
 }
 
 ##########################################################################
@@ -112,12 +119,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check that this server runs CentOS and version is CentOS release 8
-if [ -f "/etc/centos-release" ]; then
-    RELEASE=$(cat /etc/centos-release | cut -c22)
-    if [ $RELEASE -ne 8 ]; then
-        echo "Fatal, platform must be CentOS 8 to run this script"
-        exit 2
-    fi
+if cat /etc/*release | grep ^NAME | grep -q Ubuntu; then
+    echo "Succeed, platform is Ubuntu"
 else
     echo "Fatal, platform must be CentOS to run this script"
     exit 2
@@ -126,12 +129,12 @@ fi
 # Check that Trojan is not already installed
 if [ -f "/usr/local/bin/trojan" ]; then
     echo "Error, trojan is already installed, exiting script"
-    exit 1
+    #exit 1
 fi
 
 # Install dependencies
 echo "Installing dependencies"
-yum -y install wget zip unzip curl bind-utils
+apt-get -y install wget zip unzip curl bind-utils dnsutils
 
 # Print a header before the parameters
 echo -e "\n********************************************************"
@@ -152,7 +155,7 @@ SERVERIP=$(wget -qO- ipinfo.io/ip)
 read -rp "What is your server's public IP address: " -e -i "$SERVERIP" SERVERIP
 
 # Get server hostname
-SERVERNAME="t1.lreading.cf"
+SERVERNAME="t2.lreading.cf"
 read -rp "What is your server's public hostname: " -e -i "$SERVERNAME" SERVERNAME
 
 # Generate password, replacing / with @
@@ -184,23 +187,17 @@ TCPCC=$(sysctl net.ipv4.tcp_congestion_control)
 if [[ $TCPCC =~ "bbr" ]]; then
     echo "Warning, TCP congestion control is already BBR, skipping this step"
 else
-    set_congestion_control
+    echo "set_congestion_control"
+    #set_congestion_control
 fi
 
 # If firewalld is not installed, then install and configure it
-if [[ $(rpm -qa | grep "firewalld") ]]; then
-    echo "Warning, firewalld is already installed, skipping this step"
-else
-    echo "skipping config firewalld"
-    #install_configure_firewalld
-fi
+#install_configure_firewalld
 
 # If nginx is not installed, then install and configure it
-if [[ $(rpm -qa | grep "nginx") ]]; then
-    echo "Warning, nginx is already installed, skipping this step"
-else
-    install_configure_nginx
-fi
+echo "install_configure_nginx"
+# install_configure_nginx
+# install_certbot
 
 # Install and configure Trojan
 install_configure_trojan
