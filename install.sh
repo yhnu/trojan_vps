@@ -76,6 +76,13 @@ install_configure_nginx () {
     #echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /usr/local/bin/certbot-auto renew" | tee -a /etc/crontab > /dev/null
 }
 
+install_cert() {
+    curl https://get.acme.sh | sh
+    ~/.acme.sh/acme.sh --issue -d t1.lreading.cf --nginx
+    ~/.acme.sh/acme.sh --installcert -d t1.lreading.cf --key-file /usr/local/etc/trojan/private.key --fullchain-file /usr/local/etc/trojan/cert.crt
+    ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+}
+
 ##########################################################################
 #                                                                        #
 # Install and configure Trojan                                           #
