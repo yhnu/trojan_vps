@@ -65,11 +65,15 @@ install_configure_nginx () {
     #cd sample-hexo-blog-master
     #cp -rf public/* /usr/share/nginx/html/
     # Obtain Let's Encrypt SSL certificate
-    wget https://dl.eff.org/certbot-auto
-    mv certbot-auto /usr/local/bin/certbot-auto
-    chmod 755 /usr/local/bin/certbot-auto
-    /usr/local/bin/certbot-auto certonly --nginx --agree-tos --register-unsafely-without-email -d $SERVERNAME
-    echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /usr/local/bin/certbot-auto renew" | tee -a /etc/crontab > /dev/null
+    curl https://get.acme.sh | sh
+    ~/.acme.sh/acme.sh --issue -d t1.lreading.cf --nginx
+    ~/.acme.sh/acme.sh --installcert -d t1.lreading.cf --key-file /usr/local/etc/trojan/private.key --fullchain-file /usr/local/etc/trojan/cert.crt
+    ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+    #wget https://dl.eff.org/certbot-auto
+    #mv certbot-auto /usr/local/bin/certbot-auto
+    #chmod 755 /usr/local/bin/certbot-auto
+    #/usr/local/bin/certbot-auto certonly --nginx --agree-tos --register-unsafely-without-email -d $SERVERNAME
+    #echo "0 0,12 * * * root python3 -c 'import random; import time; time.sleep(random.random() * 3600)' && /usr/local/bin/certbot-auto renew" | tee -a /etc/crontab > /dev/null
 }
 
 ##########################################################################
