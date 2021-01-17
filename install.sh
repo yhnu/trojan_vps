@@ -60,10 +60,10 @@ install_configure_nginx () {
     # Restart Nginx with its new configuration
     systemctl restart nginx
     # Add website content
-    wget https://github.com/lionlibr/sample-hexo-blog/archive/master.zip
-    unzip master.zip
-    cd sample-hexo-blog-master
-    cp -rf public/* /usr/share/nginx/html/
+    wget https://github.com/V2RaySSR/Trojan/raw/master/web.zip
+    unzip web.zip -d /usr/share/nginx/html/
+    #cd sample-hexo-blog-master
+    #cp -rf public/* /usr/share/nginx/html/
     # Obtain Let's Encrypt SSL certificate
     wget https://dl.eff.org/certbot-auto
     mv certbot-auto /usr/local/bin/certbot-auto
